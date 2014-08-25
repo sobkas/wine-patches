@@ -1,0 +1,70 @@
+diff --git a/dlls/wined3d/query.c b/dlls/wined3d/query.c
+index b01e124..3cc6624 100644
+--- a/dlls/wined3d/query.c
++++ b/dlls/wined3d/query.c
+@@ -340,7 +340,7 @@ static HRESULT wined3d_occlusion_query_ops_get_data(struct wined3d_query *query,
+         return S_OK;
+     }
+ 
+-    if (oq->context->tid != GetCurrentThreadId())
++    if (oq->context->tid != GetCurrentThreadId() && !gl_info->supported[ARB_SYNC])
+     {
+         FIXME("%p Wrong thread, returning 1.\n", query);
+         samples = 1;
+@@ -378,6 +378,8 @@ static HRESULT wined3d_occlusion_query_ops_get_data(struct wined3d_query *query,
+ static HRESULT wined3d_event_query_ops_get_data(struct wined3d_query *query,
+         void *data, DWORD size, DWORD flags)
+ {
++    struct wined3d_device *device = query->device;
++    const struct wined3d_gl_info *gl_info = &device->adapter->gl_info;
+     struct wined3d_event_query *event_query = query->extendedData;
+     BOOL signaled;
+     enum wined3d_event_query_result ret;
+@@ -398,6 +400,7 @@ static HRESULT wined3d_event_query_ops_get_data(struct wined3d_query *query,
+     {
+         case WINED3D_EVENT_QUERY_OK:
+         case WINED3D_EVENT_QUERY_NOT_STARTED:
++        case WINED3D_EVENT_QUERY_WRONG_THREAD:
+             signaled = TRUE;
+             fill_query_data(data, size, &signaled, sizeof(signaled));
+             break;
+@@ -407,12 +410,6 @@ static HRESULT wined3d_event_query_ops_get_data(struct wined3d_query *query,
+             fill_query_data(data, size, &signaled, sizeof(signaled));
+             break;
+ 
+-        case WINED3D_EVENT_QUERY_WRONG_THREAD:
+-            FIXME("(%p) Wrong thread, reporting GPU idle.\n", query);
+-            signaled = TRUE;
+-            fill_query_data(data, size, &signaled, sizeof(signaled));
+-            break;
+-
+         case WINED3D_EVENT_QUERY_ERROR:
+             ERR("The GL event query failed, returning D3DERR_INVALIDCALL\n");
+             return WINED3DERR_INVALIDCALL;
+@@ -473,7 +470,7 @@ static HRESULT wined3d_occlusion_query_ops_issue(struct wined3d_query *query, DW
+         {
+             if (query->state == QUERY_BUILDING)
+             {
+-                if (oq->context->tid != GetCurrentThreadId())
++                if (oq->context->tid != GetCurrentThreadId() && !gl_info->supported[ARB_SYNC])
+                 {
+                     FIXME("Wrong thread, can't restart query.\n");
+ 
+@@ -509,7 +506,7 @@ static HRESULT wined3d_occlusion_query_ops_issue(struct wined3d_query *query, DW
+              */
+             if (query->state == QUERY_BUILDING)
+             {
+-                if (oq->context->tid != GetCurrentThreadId())
++                if (oq->context->tid != GetCurrentThreadId() && !gl_info->supported[ARB_SYNC])
+                 {
+                     FIXME("Wrong thread, can't end query.\n");
+                 }
+@@ -563,7 +560,7 @@ static HRESULT wined3d_timestamp_query_ops_get_data(struct wined3d_query *query,
+         return S_OK;
+     }
+ 
+-    if (tq->context->tid != GetCurrentThreadId())
++    if (tq->context->tid != GetCurrentThreadId() && !gl_info->supported[ARB_SYNC])
+     {
+         FIXME("%p Wrong thread, returning 1.\n", query);
+         timestamp = 1;
